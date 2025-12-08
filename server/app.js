@@ -1,6 +1,32 @@
 import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { ApiRouter } from './router/index.js';
 
 const app = express();
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'script-src': ["'self'", "'unsafe-inline'"],
+      },
+    },
+  })
+);
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use('/api', ApiRouter);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Hello, World!' });
