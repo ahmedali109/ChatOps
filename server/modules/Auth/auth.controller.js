@@ -1,5 +1,6 @@
 import { generateToken } from '../../config/utils.js';
 import { UserModel } from '../user/user.model.js';
+import cloudinary from '../../config/cloudinary.js';
 import bcrypt from 'bcryptjs';
 
 export const signup = async (req, res) => {
@@ -35,6 +36,7 @@ export const signup = async (req, res) => {
           id: newUser._id,
           fullName: newUser.fullName,
           email: newUser.email,
+          profilePicture: newUser.profilePicture,
         },
       });
     } else {
@@ -48,10 +50,93 @@ export const signup = async (req, res) => {
   }
 };
 
-export const login = (req, res) => {
-  // Login logic here
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: 'All fields are required.' });
+    }
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+    generateToken(user._id, res);
+    return res.status(200).json({
+      message: 'Login successful.',
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        profilePicture: user.profilePicture,
+      },
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    return res
+      .status(500)
+      .json({ message: 'Internal server error.', error: error.message });
+  }
 };
 
-export const logout = (req, res) => {
-  // Logout logic here
+export const logout = async (req, res) => {
+  try {
+    res.clearCookie('token', { maxAge: 0 });
+    return res.status(200).json({ message: 'Logout successful.' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return res
+      .status(500)
+      .json({ message: 'Internal server error.', error: error.message });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { profilePicture } = req.body;
+    const userId = req.user._id;
+
+    if (!profilePicture) {
+      return res.status(400).json({ message: 'Profile picture is required.' });
+    }
+
+    const uploadedImage = await cloudinary.uploader.upload(profilePicture);
+
+    if (!uploadedImage) {
+      return res.status(500).json({ message: 'Error uploading image.' });
+    }
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      { profilePicture: uploadedImage.secure_url },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    return res.status(200).json({
+      message: 'Profile updated successfully.',
+      user: {
+        id: updatedUser._id,
+        fullName: updatedUser.fullName,
+        email: updatedUser.email,
+        profilePicture: updatedUser.profilePicture,
+      },
+    });
+  } catch (error) {}
+};
+
+export const checkAuth = (req, res) => {
+  try {
+    res.status(200).json({ message: 'You are authenticated', user: req.user });
+  } catch (error) {
+    console.error('CheckAuth error:', error);
+    return res
+      .status(500)
+      .json({ message: 'Internal server error.', error: error.message });
+  }
 };
