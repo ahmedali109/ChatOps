@@ -7,13 +7,21 @@ import {
   checkAuth,
 } from './auth.controller.js';
 import { protectRoute } from './auth.middleware.js';
+import multer from 'multer';
+
+const upload = multer();
 
 const router = express.Router();
 
 router.post('/signup', signup);
 router.post('/login', login);
 router.post('/logout', logout);
-router.put('/update-profile', protectRoute, updateProfile);
+router.put(
+  '/update-profile',
+  protectRoute,
+  upload.single('profilePicture'),
+  updateProfile
+);
 router.get('/check', protectRoute, checkAuth);
 
 export { router as AuthRouter };
